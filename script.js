@@ -1,9 +1,9 @@
-/* === Kalkulátor dimenzování kabelů v2.0.6 (Reset) === */
-// Přidáno tlačítko a funkce pro obnovení výchozích hodnot
+/* === Kalkulátor dimenzování kabelů v2.2.0 (Čistý start) === */
+// Stránka se načte s prázdnými poli. Reset tlačítko načte demo hodnoty.
 
 // --- 1. DATABÁZE (Konstanty a normy) ---
 
-const JISTICE_RADA = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630];
+const JISTICE_RADA = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 1000, 1250];
 const PRUREZY_RADA = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240];
 
 const KOREKCE_TEPLOTA = {
@@ -175,8 +175,11 @@ function calculate() {
             kSoubeh: getValueAsNum('korekceSoubeh') || 1.0,
             kPuda: getValueAsNum('korekcePuda') || 1.0,
             startPrurez: getValueAsNum('startPrurez'),
-            pocetRadku: getValueAsNum('pocetRadku') || 5
+            pocetRadku: Math.max(1, Math.min(10, getValueAsNum('pocetRadku') || 5))
         };
+
+        // Aktualizujeme hodnotu v poli, pokud ji JS oříznul
+        el('pocetRadku').value = inputs.pocetRadku;
 
         if (inputs.proud_IB <= 0 || inputs.delka <= 0 || inputs.cosPhi <= 0 || inputs.cosPhi > 1) {
             throw new Error("Zadejte platné vstupní hodnoty (Proud > 0, Délka > 0, 0 < cos φ <= 1).");
@@ -195,8 +198,9 @@ function calculate() {
 
         // Krok 3: Příprava dat a korekcí
         const tabulkaParametru = PARAMETRY_KABELU[inputs.material]?.[inputs.typKabelu]?.[inputs.izolace]?.[inputs.ulozeni];
+
         if (!tabulkaParametru) {
-            throw new Error(`Pro uložení "${inputs.ulozeni}" nejsou pro tuto kombinaci data. Zvolte C (vzduch) nebo D2 (země).`);
+            throw new Error(`Pro kombinaci ${inputs.material}/${inputs.izolace} a uložení "${inputs.ulozeni}" nejsou k dispozici data.`);
         }
 
         const kTeplota = getKorekceTeploty(inputs.izolace, inputs.ulozeni, inputs.teplotaOkoli);
@@ -208,11 +212,14 @@ function calculate() {
         // Krok 4: Generování tabulky
         let startIndex = PRUREZY_RADA.indexOf(inputs.startPrurez);
         if (startIndex === -1) {
+            // Najde nejbližší *vyšší* nebo rovný průřez v řadě
             const firstValidIndex = PRUREZY_RADA.findIndex(p => p >= inputs.startPrurez);
             if (firstValidIndex === -1) throw new Error("Startovní průřez je příliš velký.");
+            // Nastaví select na platnou hodnotu
             el('startPrurez').value = PRUREZY_RADA[firstValidIndex];
             startIndex = firstValidIndex;
         }
+
 
         for (let i = startIndex; i < Math.min(startIndex + inputs.pocetRadku, PRUREZY_RADA.length); i++) {
             const prurez = PRUREZY_RADA[i];
@@ -220,21 +227,15 @@ function calculate() {
             const n = inputs.pocetParalelne; // Počet paralelních kabelů
             const typ = inputs.typKabelu; // "Vicezilovy" or "Jednozilovy"
 
-            // --- Logika pro popis vedení (OPRAVENA) ---
             let vedeniPopisZaklad = '';
             if (typ === 'Jednozilovy') {
-                // Např. Žíly 3x(1x240 mm²) -> 3 oddělené žíly
                 vedeniPopisZaklad = `Žíly 3x(1x${prurez} mm²)`;
             } else {
-                // Např. Kabel 3x240 mm² -> 1 kabel se 3 žilami (pro 3f)
                 vedeniPopisZaklad = `Kabel 3x${prurez} mm²`;
             }
 
-            // n = počet paralelních sad
             let vedeniPopis = (n > 1) ? `${n} x [${vedeniPopisZaklad}]` : vedeniPopisZaklad;
-            // --- KONEC OPRAVY ---
 
-            // Proud na jeden kabel (nebo jednu sadu žil)
             const ib_per_cable = inputs.proud_IB / n;
 
             const tr = document.createElement('tr');
@@ -242,30 +243,25 @@ function calculate() {
             if (!param) {
                 tr.innerHTML = `
                     <td>${vedeniPopis}</td>
-                    <td colspan="4" style="color: var(--text-muted); font-style: italic;">Data nejsou k dispozici</td>
+                    <td colspan="5" style="color: var(--text-muted); font-style: italic;">Data nejsou k dispozici</td>
                 `;
                 tbody.appendChild(tr);
                 continue;
             }
 
-            // Zatížitelnost JEDNOHO korigovaného kabelu
             const iz_korigovana_jeden = param.iz * kTotal;
-            // Celková zatížitelnost paralelní skupiny
             const iz_korigovana_total = iz_korigovana_jeden * n;
 
             const r_prime = param.r_prime;
             const x_prime = param.x_prime;
 
-            // Úbytek - počítá se z proudu na JEDEN kabel
             const ubytekV = K_ubytek * ib_per_cable * (inputs.delka / 1000) * (r_prime * inputs.cosPhi + x_prime * inputs.sinPhi);
             const ubytekPct = (ubytekV / inputs.napeti) * 100;
 
-            // Ztráty - počítají se z proudu na JEDEN kabel a násobí se počtem kabelů
             const R_faze_provozni = r_prime * (inputs.delka / 1000);
             const ztratyW_jeden = K_ztraty * (ib_per_cable ** 2) * R_faze_provozni;
             const ztratyW_total = ztratyW_jeden * n;
 
-            // Kontrola stavu - porovnáváme CELKOVOU kapacitu s CELKOVÝM požadavkem
             const vyhovujeIz = (iz_korigovana_total >= pozadovanaIzKorigovana);
             const vyhovujeDU = (ubytekPct <= inputs.max_ubytek_pct);
 
@@ -287,6 +283,7 @@ function calculate() {
             tr.innerHTML = `
                 <td>${vedeniPopis}</td>
                 <td>${ubytekPct.toFixed(2)} %</td>
+                <td>${ubytekV.toFixed(1)} V</td>
                 <td>${ztratyW_total.toFixed(0)} W</td>
                 <td>${iz_korigovana_total.toFixed(1)} A</td>
                 <td><span class="status-text ${statusClass}">${statusText}</span></td>
@@ -297,7 +294,6 @@ function calculate() {
     } catch (error) {
         console.error("Chyba výpočtu:", error);
         displayError(error.message);
-        // Vyčistíme info o jističi, když nastane chyba
         el('info-jistic').textContent = '...';
         el('info-iz-req').textContent = '...';
     }
@@ -320,7 +316,6 @@ function populateStartPrurez() {
     const select = el('startPrurez');
     select.innerHTML = ''; // Vyčistíme před naplněním
     PRUREZY_RADA.forEach(prurez => {
-        // Přidáme jen průřezy, pro které existují data (alespoň pro Cu/Vícežilový/PVC/C)
         if (PARAMETRY_KABELU.Cu?.Vicezilovy?.PVC?.C?.[prurez]) {
             const option = document.createElement('option');
             option.value = prurez;
@@ -333,6 +328,7 @@ function populateStartPrurez() {
     select.value = defaultStart;
 }
 
+// Funkce resetDefaults teď slouží jako "Načíst demo"
 function resetDefaults() {
     // Radia
     el('u400').checked = true;
@@ -340,7 +336,7 @@ function resetDefaults() {
     el('kabelTypMulti').checked = true;
     el('paralelne1').checked = true;
 
-    // Běžné inputy
+    // Běžné inputy - toto jsou DEMO hodnoty
     el('vykon').value = 250;
     el('proud').value = ''; // Bude dopočítán
     el('cosPhi').value = 0.9;
@@ -363,10 +359,8 @@ function resetDefaults() {
     displayError(null);
 
     // Znovu synchronizovat a vypočítat
-    setTimeout(() => {
-        syncPowerAndCurrent('vykon'); // Spustí se s výkonem 250 kW
-        calculate();
-    }, 10); // Krátká pauza, aby se stihly propsat radio values
+    syncPowerAndCurrent('vykon'); // Spustí se s výkonem 250 kW
+    calculate();
 }
 
 
@@ -374,7 +368,7 @@ function resetDefaults() {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    populateStartPrurez();
+    populateStartPrurez(); // Naplní <select> a nastaví jeho výchozí hodnotu (50mm²)
 
     const allInputs = [
         ...document.querySelectorAll('input[name="napeti"]'),
@@ -395,15 +389,16 @@ document.addEventListener('DOMContentLoaded', () => {
         el('pocetRadku')
     ];
 
+    // Tlačítko resetu teď volá funkci, která načte demo hodnoty
     el('resetButton')?.addEventListener('click', (e) => {
-        e.preventDefault(); // Zabráníme defaultní akci tlačítka
+        e.preventDefault();
         resetDefaults();
     });
 
     const debouncedCalculate = debounce(calculate, 300);
 
     allInputs.forEach(input => {
-        input?.addEventListener('input', (e) => { // Přidáno ? pro jistotu
+        input?.addEventListener('input', (e) => {
             if (!e || !e.target) return;
 
             const targetId = e.target.id;
@@ -413,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (targetId === 'proud') {
                 syncPowerAndCurrent('proud');
             } else if (targetId === 'cosPhi') {
-                // Přepočítat proud, pokud je zadán výkon
                 if (getValueAsNum('vykon') > 0 || el('vykon').value) {
                     syncPowerAndCurrent('vykon');
                 }
@@ -423,14 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Provedeme počáteční synchronizaci a výpočet až po krátké pauze,
-    // aby se stihly načíst všechny hodnoty (zejména z radio buttonů)
-    setTimeout(() => {
-        if (getValueAsNum('vykon') > 0 || el('vykon').value) {
-            syncPowerAndCurrent('vykon');
-        } else if (getValueAsNum('proud') > 0 || el('proud').value) {
-            syncPowerAndCurrent('proud');
-        }
-        calculate();
-    }, 50); // Krátká pauza
+    // Spustíme 'calculate()', který přečte prázdné hodnoty
+    // a zobrazí chybu "Zadejte platné vstupní hodnoty...".
+    calculate();
 });

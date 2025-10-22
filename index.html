@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Srovnávač dimenzování kabelů v2.0.1</title>
+    <title>Srovnávač dimenzování kabelů v2.2.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -40,18 +40,18 @@
                 </div>
                 <div class="form-group">
                     <label for="cosPhi">Účiník (cos φ)</label>
-                    <input type="number" id="cosPhi" placeholder="např. 0.98" step="0.01" min="0.1" max="1">
+                    <input type="number" id="cosPhi" placeholder="např. 0.9" step="0.01" min="0.1" max="1">
                 </div>
 
                 <h2>2. Vedení</h2>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="delka">Délka (m)</label>
-                        <input type="number" id="delka" placeholder="např. 10">
+                        <input type="number" id="delka" placeholder="např. 30">
                     </div>
                     <div class="form-group">
                         <label for="ubytek">Požad. úbytek (%)</label>
-                        <input type="number" id="ubytek" placeholder="např. 5%" step="0.5">
+                        <input type="number" id="ubytek" placeholder="např. 5" step="0.5">
                     </div>
                 </div>
                 <div class="form-group">
@@ -137,7 +137,7 @@
                 </details>
 
                 <button type="button" id="resetButton" class="button-reset">
-                    Obnovit výchozí hodnoty
+                    Načíst demo hodnoty
                 </button>
 
             </section>
@@ -161,6 +161,7 @@
                         <tr>
                             <th>Vedení</th>
                             <th>&Delta;U (%)</th>
+                            <th>&Delta;U (V)</th>
                             <th>Ztráty (W)</th>
                             <th>Celková I<sub>Z</sub>' (A)</th>
                             <th>Stav</th>
