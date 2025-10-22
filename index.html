@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Srovnávač dimenzování kabelů v2.0.0</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Srovnávač dimenzování kabelů</h1>
+        <p class="muted">Návrh průřezu a jištění včetně &Delta;U (R, X, cos &phi;) a korekcí I<sub>Z</sub>.</p>
+
+        <div class="calculator-card">
+
+            <section class="input-section">
+
+                <h2>1. Zátěž</h2>
+                <div class="form-group">
+                    <label>Napětí</label>
+                    <div class="switch">
+                        <input type="radio" id="u230" name="napeti" value="230">
+                        <label for="u230">230 V (1f)</label>
+                        <input type="radio" id="u400" name="napeti" value="400" checked>
+                        <label for="u400">400 V (3f)</label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vykon">Výkon (kW)</label>
+                        <input type="number" id="vykon" placeholder="např. 250" value="250">
+                    </div>
+                    <div class="form-group">
+                        <label for="proud">Proud (A)</label>
+                        <input type="number" id="proud" placeholder="např. 380">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="cosPhi">Účiník (cos φ)</label>
+                    <input type="number" id="cosPhi" value="0.9" step="0.01" min="0.1" max="1">
+                </div>
+
+                <h2>2. Vedení</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="delka">Délka (m)</label>
+                        <input type="number" id="delka" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label for="ubytek">Požad. úbytek (%)</label>
+                        <input type="number" id="ubytek" value="5.0" step="0.5">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Materiál</label>
+                    <div class="switch">
+                        <input type="radio" id="cu" name="material" value="Cu" checked>
+                        <label for="cu">Měď (Cu)</label>
+                        <input type="radio" id="al" name="material" value="Al">
+                        <label for="al">Hliník (Al)</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Typ kabelu</label>
+                    <div class="switch">
+                        <input type="radio" id="kabelTypMulti" name="kabelTyp" value="Vicezilovy" checked>
+                        <label for="kabelTypMulti">Vícežilový (1x)</label>
+                        <input type="radio" id="kabelTypSingle" name="kabelTyp" value="Jednozilovy">
+                        <label for="kabelTypSingle">Jednožilové (3x)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Počet paralelních kabelů (na fázi)</label>
+                    <div class="switch">
+                        <input type="radio" id="paralelne1" name="paralelne" value="1" checked>
+                        <label for="paralelne1">1x</label>
+                        <input type="radio" id="paralelne2" name="paralelne" value="2">
+                        <label for="paralelne2">2x</label>
+                        <input type="radio" id="paralelne3" name="paralelne" value="3">
+                        <label for="paralelne3">3x</label>
+                    </div>
+                    <small class="muted-text">Při >1 kabelu zvažte snížení 'kₛ' v pokročilém nastavení (např. 0.8 pro 2
+                        kabely vedle sebe).</small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startPrurez">Začít srovnání od</label>
+                        <select id="startPrurez">
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="pocetRadku">Počet řádků</label>
+                        <input type="number" id="pocetRadku" value="5" min="1" max="10">
+                    </div>
+                </div>
+
+                <h2>3. Uložení</h2>
+                <div class="form-group">
+                    <label for="ulozeni">Způsob uložení</label>
+                    <select id="ulozeni">
+                        <option value="A2" disabled>Ve zdi v trubce (A2) - data chybí</option>
+                        <option value="C">Na povrchu / v liště (C)</option>
+                        <option value="D2" selected>V zemi v chráničce (D2)</option>
+                        <option value="E" disabled>Na lávce (E) - data chybí</option>
+                    </select>
+                </div>
+
+                <details class="advanced-settings" closed>
+                    <summary>4. Pokročilé korekce</summary>
+                    <div class="details-content">
+                        <div class="form-group">
+                            <label for="izolace">Izolace (Provozní teplota)</label>
+                            <select id="izolace">
+                                <option value="PVC">PVC (70°C)</option>
+                                <option value="XLPE">XLPE/EPR (90°C)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="teplotaOkoli">Teplota okolí (°C)</label>
+                            <input type="number" id="teplotaOkoli" value="20" step="5">
+                            <small class="muted-text">Vzduch: 30°C, Půda: 20°C</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="korekceSoubeh">Součinitel souběhu (kₛ)</label>
+                            <input type="number" id="korekceSoubeh" value="1.0" step="0.05">
+                        </div>
+                        <div class="form-group">
+                            <label for="korekcePuda">Součinitel půdy (kₚ)</label>
+                            <input type="number" id="korekcePuda" value="1.0" step="0.05">
+                        </div>
+                    </div>
+                </details>
+
+            </section>
+
+            <section class="output-section">
+                <h2>Srovnání průřezů</h2>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Požadovaný jistič (I<sub>N</sub>)</label>
+                        <div class="kpi-info" id="info-jistic">...</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Požad. I<sub>Z</sub>' (celkem)</label>
+                        <div class="kpi-info" id="info-iz-req">...</div>
+                    </div>
+                </div>
+
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>Vedení</th>
+                            <th>&Delta;U (%)</th>
+                            <th>Ztráty (W)</th>
+                            <th>Celková I<sub>Z</sub>' (A)</th>
+                            <th>Stav</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-tbody">
+                    </tbody>
+                </table>
+
+                <div id="error-message" class="error-box" style="display: none;"></div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
